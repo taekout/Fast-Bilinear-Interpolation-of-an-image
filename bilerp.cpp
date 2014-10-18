@@ -34,7 +34,12 @@ const size_t BYTES_PER_PIXEL = 3; // 24 bit color depth :D
 void writeBitmap(std::string in_filename, size_t in_width, size_t in_height, unsigned char * in_data);
 void generateLowResBitmap(size_t in_width, size_t in_height, unsigned char * in_data);
 
+#define TAEKYU_DEBUG
+#ifdef TAEKYU_DEBUG
 #define CHECK_BOUND(x,y,xbound,ybound)		( (x >= 0 && x < xbound) && (y >= 0 && y < ybound) )
+#else
+#define CHECK_BOUND(x,y,xbound,ybound)	true
+#endif
 
 void inline pixelCopy(unsigned char * dst, const unsigned char * src)
 {
@@ -96,21 +101,21 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 				pixelCopy(NE, in_source + srcOffset + BYTES_PER_PIXEL);
 			else {
 				pixelCopy(NE, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY);
+				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
 			if (CHECK_BOUND(srcX, srcY + 1, in_src_width, in_src_height) )
 				pixelCopy(SW, in_source + srcOffset + in_src_width * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SW, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY);
+				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
 			if (CHECK_BOUND(srcX + 1, srcY + 1, in_src_width, in_src_height) )
 				pixelCopy(SE, in_source + srcOffset + (in_src_width + 1) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SE, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY);
+				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
 			int dstOffset = (y * in_dest_width + x) * BYTES_PER_PIXEL;
