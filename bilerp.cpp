@@ -28,6 +28,7 @@ I would just like to leave some of my thoughts.
 
 #include <string>
 #include <stdint.h>
+#include <ctime>
 
 const size_t BYTES_PER_PIXEL = 3; // 24 bit color depth :D
 
@@ -143,7 +144,11 @@ int main(int argc, char ** argv)
 	unsigned char * result_image = new unsigned char[result_width*result_height*BYTES_PER_PIXEL];
 	memset(result_image,0,result_width*result_height*BYTES_PER_PIXEL);
 
+	clock_t begin = clock();
 	generateFilteredImage(8,generated_width, generated_height, generated_image, result_width, result_height, result_image);
+	clock_t end = clock();
+	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
+	printf("TIme elapsed : %f\n", elapsed_secs);
 	
 	delete[] generated_image;
 
