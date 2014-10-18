@@ -1,0 +1,11 @@
+*.tlog
+*.exe
+*.lastbuildstate
+Debug/vc110.idb
+Debug/vc110.pdb
+*.pdb
+*.log
+*.ilk
+Debug/bilerp.obj
+bilerpCpp.sdf
+bilerpCpp.opensdf
