@@ -81,8 +81,8 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
-			float dsrcX = ( (float)(x) / in_dest_width) * (in_src_width - 1) ;
-			float dsrcY = ( (float)(y) / in_dest_height) * (in_src_height - 1);
+			float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (in_src_width - 1) ;
+			float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (in_src_height - 1);
 
 			int srcX = (int) dsrcX;
 			int srcY = (int) dsrcY;
@@ -95,26 +95,31 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 
 			unsigned char NW[BYTES_PER_PIXEL], NE[BYTES_PER_PIXEL], SW[BYTES_PER_PIXEL], SE[BYTES_PER_PIXEL];
 
-			pixelCopy(NW, in_source + (srcY * in_src_width + srcX) * BYTES_PER_PIXEL);
+			if(CHECK_BOUND(srcX, srcY, in_src_width, in_src_height))
+				pixelCopy(NW, in_source + (srcY * in_src_width + srcX) * BYTES_PER_PIXEL);
+			else {
+				printf("Error You should not see this. : (%d , %d) <- (%d, %d) \n", srcX, srcY, x, y);
+			}
+			
 			if (CHECK_BOUND(srcX + 1, srcY, in_src_width, in_src_height) )
 				pixelCopy(NE, in_source + (srcY * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(NE, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
+				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX + 1, srcY, x, y);
 			}
 
 			if (CHECK_BOUND(srcX, srcY + 1, in_src_width, in_src_height) )
 				pixelCopy(SW, in_source + ((srcY + 1) * in_src_width + srcX) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SW, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
+				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX, srcY + 1, x, y);
 			}
 
 			if (CHECK_BOUND(srcX + 1, srcY + 1, in_src_width, in_src_height) )
 				pixelCopy(SE, in_source + ((srcY + 1) * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SE, NW);
-				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
+				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX + 1, srcY + 1, x, y);
 			}
 
 			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
