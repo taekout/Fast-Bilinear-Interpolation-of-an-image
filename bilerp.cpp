@@ -1,34 +1,9 @@
-
-/*
-
-Hi Mr. Fafe,
-
-I think it might be out of the scope for this problem. So did not really try it out, but commented about it here.
-generateFilteredImage() function has this comment. --> Figure out the next row in the result image that needs to be computed.
-
-It sounds like the structure will be like this.
-If 8 threads is input, Thread#0 will do row 1, row (1*8), row (2*8), ... etc.
-
-
-1. What if the algorithm weren't a simple filtering algorithm, but slow and complicated process like light transport calculation for 200 virtual lights in the space?
-(Where one thread could be finished much later than the others 7 threads.)
-
-2. What if the output size is huge like 100000x100000 and then one thread is slow because of L1/2 cache misses and even memory misses. (Since the code may not load the whole image at once due to the amount of the image data size.)
-
-These situations will have bad load-balance and some threads might be significantly slower than others.
-
-In situations like this, would it be better for one thread to only finish one row?
-(That way, each thread is independent from each other.)
-
-Of course, in this simple test case, it wouldn't make sense since creating a thread is so slow.
-
-I would just like to leave some of my thoughts.
-
-*/
-
 #include <string>
 #include <stdint.h>
 #include <ctime>
+#include <vector>
+
+using namespace std;
 
 const size_t BYTES_PER_PIXEL = 3; // 24 bit color depth :D
 
@@ -67,6 +42,17 @@ void inline interpolate4Pixels(unsigned char *dst, const unsigned char * NW, con
 	}
 }
 
+struct vec3 {
+	unsigned char r, g, b;
+	vec3(unsigned char _r, unsigned char _g, unsigned char _b) : r(_r), g(_g), b(_b) {}
+	vec3() : r(0), g(0), b(0) {}
+
+	void Set(const unsigned char * d) {
+		b = d[0];
+		g = d[1];
+		r = d[2];
+	}
+};
 
 
 void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_src_height, const unsigned char * in_source, size_t in_dest_width, size_t in_dest_height, unsigned char * in_dest)
@@ -78,51 +64,84 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	// - Set those pixels in in_dest
 	// - Keep doing that until all the rows in the bitmap are complete
 
+	// enlarge the source image to properly interpolate from the boundary.
+	size_t srcWidth = 2 * (in_src_width + 1);
+	size_t srcHeight = 2 * (in_src_height + 1);
+	vector< vector<vec3> > srcImg;
+	// init src image.
+	srcImg.resize(srcHeight);
+	for(size_t i = 0 ; i < srcHeight ; i++) {
+		srcImg[i].resize(srcWidth);
+	}
+
+	for(size_t y = 0 ; y < in_src_height; y++) {
+		for(size_t x = 0 ; x < in_src_width ; x++) {
+			int ix = x * 2 + 1;
+			int iy = y * 2 + 1;
+			
+			srcImg[iy][ix].Set(&in_source[(y * in_src_width + x) * BYTES_PER_PIXEL]);
+			srcImg[iy][ix+1] = srcImg[iy][ix];
+			srcImg[iy+1][ix] = srcImg[iy][ix];
+			srcImg[iy+1][ix+1] = srcImg[iy][ix];
+		}
+	}
+
+	auto fillBoardRow = [&]( vector< vector<vec3> > & inImage, int destY, int srcY) {
+		if(inImage.empty()) throw "image should have at least a row.";
+		if(inImage[0].empty()) throw "image should have at least a row.";
+
+		int height = inImage.size();
+		int width = inImage[0].size();
+		for(size_t i = 0 ; i < width ; i++) {
+
+			if( (destY == height - 1 || destY == 0) && (i == width - 1 || i == 0) )
+				continue;
+
+			inImage[destY][i] = inImage[srcY][i];
+		}
+	};
+
+	auto fillBoardCol = [&]( vector< vector<vec3> > & inImage, int destX, int srcX) {
+		if(inImage.empty()) throw "image should have at least a row.";
+		if(inImage[0].empty()) throw "image should have at least a row.";
+
+		int height = inImage.size();
+		int width = inImage[0].size();
+		for(size_t i = 0 ; i < height; i++) {
+
+			if( (destX == width - 1 || destX == 0) && (i == height - 1 || i == 0) )
+				continue;
+
+			inImage[i][destX] = inImage[i][srcX];
+		}
+	};
+
+	fillBoardRow(srcImg, srcHeight - 1, srcHeight - 2);
+	fillBoardRow(srcImg, 0, 1);
+	fillBoardCol(srcImg, srcWidth - 1, srcWidth - 2);
+	fillBoardCol(srcImg, 0, 1);
+	
+
+	// Interpolate over src image.
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
-			float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (in_src_width - 1) ;
-			float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (in_src_height - 1);
+			//float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (srcWidth - 1);
+			//float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (srcHeight - 1);
+			float dsrcX = ( (float)(x) / (in_dest_width )) * (srcWidth);
+			float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight);
 
 			int srcX = (int) dsrcX;
 			int srcY = (int) dsrcY;
 
 			float weightX = dsrcX - srcX;
 			float weightY = dsrcY - srcY;
-			
-			// Source image
-			//int srcOffset = (srcY * in_src_width + srcX) * BYTES_PER_PIXEL;
 
-			unsigned char NW[BYTES_PER_PIXEL], NE[BYTES_PER_PIXEL], SW[BYTES_PER_PIXEL], SE[BYTES_PER_PIXEL];
+			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL] = srcImg[srcY][srcX].b;
+			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL + 1] = srcImg[srcY][srcX].g;
+			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL + 2] = srcImg[srcY][srcX].r;
 
-			if(CHECK_BOUND(srcX, srcY, in_src_width, in_src_height))
-				pixelCopy(NW, in_source + (srcY * in_src_width + srcX) * BYTES_PER_PIXEL);
-			else {
-				printf("Error You should not see this. : (%d , %d) <- (%d, %d) \n", srcX, srcY, x, y);
-			}
-			
-			if (CHECK_BOUND(srcX + 1, srcY, in_src_width, in_src_height) )
-				pixelCopy(NE, in_source + (srcY * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
-			else {
-				pixelCopy(NE, NW);
-				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX + 1, srcY, x, y);
-			}
-
-			if (CHECK_BOUND(srcX, srcY + 1, in_src_width, in_src_height) )
-				pixelCopy(SW, in_source + ((srcY + 1) * in_src_width + srcX) * BYTES_PER_PIXEL);
-			else {
-				pixelCopy(SW, NW);
-				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX, srcY + 1, x, y);
-			}
-
-			if (CHECK_BOUND(srcX + 1, srcY + 1, in_src_width, in_src_height) )
-				pixelCopy(SE, in_source + ((srcY + 1) * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
-			else {
-				pixelCopy(SE, NW);
-				printf("Out of bound : (%d , %d) <- (%d, %d) \n", srcX + 1, srcY + 1, x, y);
-			}
-
-			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
+			//interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
 		}
 	}
 }
