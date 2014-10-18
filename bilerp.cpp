@@ -78,8 +78,6 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	// - Set those pixels in in_dest
 	// - Keep doing that until all the rows in the bitmap are complete
 
-	size_t bound = in_src_height * in_src_width * BYTES_PER_PIXEL;
-
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
