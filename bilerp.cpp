@@ -82,8 +82,8 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
-			float dsrcX = ( (float)(x + 0.5) / in_dest_width) * (in_src_width - 1) ;
-			float dsrcY = ( (float)(y + 0.5) / in_dest_height) * (in_src_height - 1);
+			float dsrcX = ( (float)(x) / in_dest_width) * (in_src_width - 1) ;
+			float dsrcY = ( (float)(y) / in_dest_height) * (in_src_height - 1);
 
 			int srcX = (int) dsrcX;
 			int srcY = (int) dsrcY;
@@ -92,34 +92,33 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 			float weightY = dsrcY - srcY;
 			
 			// Source image
-			int srcOffset = (srcY * in_src_width + srcX) * BYTES_PER_PIXEL;
+			//int srcOffset = (srcY * in_src_width + srcX) * BYTES_PER_PIXEL;
 
 			unsigned char NW[BYTES_PER_PIXEL], NE[BYTES_PER_PIXEL], SW[BYTES_PER_PIXEL], SE[BYTES_PER_PIXEL];
 
-			pixelCopy(NW, in_source + srcOffset);
+			pixelCopy(NW, in_source + (srcY * in_src_width + srcX) * BYTES_PER_PIXEL);
 			if (CHECK_BOUND(srcX + 1, srcY, in_src_width, in_src_height) )
-				pixelCopy(NE, in_source + srcOffset + BYTES_PER_PIXEL);
+				pixelCopy(NE, in_source + (srcY * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(NE, NW);
 				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
 			if (CHECK_BOUND(srcX, srcY + 1, in_src_width, in_src_height) )
-				pixelCopy(SW, in_source + srcOffset + in_src_width * BYTES_PER_PIXEL);
+				pixelCopy(SW, in_source + ((srcY + 1) * in_src_width + srcX) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SW, NW);
 				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
 			if (CHECK_BOUND(srcX + 1, srcY + 1, in_src_width, in_src_height) )
-				pixelCopy(SE, in_source + srcOffset + (in_src_width + 1) * BYTES_PER_PIXEL);
+				pixelCopy(SE, in_source + ((srcY + 1) * in_src_width + (srcX + 1)) * BYTES_PER_PIXEL);
 			else {
 				pixelCopy(SE, NW);
 				printf("Out of bound : (%d , %d) \n", srcX, srcY); exit(-1);
 			}
 
-			int dstOffset = (y * in_dest_width + x) * BYTES_PER_PIXEL;
-			interpolate4Pixels(in_dest + dstOffset, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
+			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
 		}
 	}
 }
