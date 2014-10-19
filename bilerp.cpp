@@ -96,10 +96,6 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 		int height = inImage.size();
 		int width = inImage[0].size();
 		for(size_t i = 0 ; i < width ; i++) {
-
-			if( (destY == height - 1 || destY == 0) && (i == width - 1 || i == 0) )
-				continue;
-
 			inImage[destY][i] = inImage[srcY][i];
 		}
 	};
@@ -111,10 +107,6 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 		int height = inImage.size();
 		int width = inImage[0].size();
 		for(size_t i = 0 ; i < height; i++) {
-
-			if( (destX == width - 1 || destX == 0) && (i == height - 1 || i == 0) )
-				continue;
-
 			inImage[i][destX] = inImage[i][srcX];
 		}
 	};
