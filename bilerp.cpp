@@ -68,8 +68,8 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	// - Keep doing that until all the rows in the bitmap are complete
 
 	// enlarge the source image to properly interpolate from the boundary.
-	size_t srcWidth = 2 * (in_src_width + 1);
-	size_t srcHeight = 2 * (in_src_height + 1);
+	int srcWidth = 2 * (in_src_width + 1);
+	int srcHeight = 2 * (in_src_height + 1);
 	vector< vector<vec3> > srcImg;
 	// init src image.
 	srcImg.resize(srcHeight);
@@ -116,23 +116,33 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	fillBoardCol(srcImg, srcWidth - 1, srcWidth - 2);
 	fillBoardCol(srcImg, 0, 1);
 	
-
+	//const float epsilon = 0.00000000001f;
 	// Interpolate over src image.
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
-			float dsrcX = ( (float)(x) / (in_dest_width)) * (srcWidth - 1);
-			float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight - 1);
+			float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (srcWidth - 2) + 1;
+			float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (srcHeight - 2) + 1;
+			
+			int srcXFloor = ((int)(dsrcX / 2)) * 2;
+			int srcXCeil = ((int)(dsrcX / 2 + 1)) * 2;
+			float weightX = (dsrcX - srcXFloor) / 2; // srcXCeil - srcXFloor is always 2.
+			int srcYFloor = ((int)(dsrcY / 2)) * 2;
+			int srcYCeil = ((int)(dsrcY / 2 + 1)) * 2;
+			float weightY = (dsrcY - srcYFloor) / 2; // srcXCeil - srcXFloor is always 2.
+
+			srcXCeil = (srcXCeil >= srcWidth) ? srcWidth - 1 : srcXCeil;
+			srcYCeil = (srcYCeil >= srcHeight) ? srcHeight - 1 : srcYCeil;
+
 			//float dsrcX = ( (float)(x) / (in_dest_width)) * (srcWidth);
 			//float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight);
 
-			int srcX = (int) dsrcX;
-			int srcY = (int) dsrcY;
-
-			float weightX = dsrcX - srcX;
-			float weightY = dsrcY - srcY;
-
-			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, srcImg[srcY][srcX], srcImg[srcY][srcX+1], srcImg[srcY+1][srcX], srcImg[srcY+1][srcX+1], dsrcX - srcX, dsrcY - srcY);
+			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL,
+				srcImg[srcYFloor][srcXFloor],
+				srcImg[srcYFloor][srcXCeil],
+				srcImg[srcYCeil][srcXFloor],
+				srcImg[srcYCeil][srcXCeil],
+				weightX, weightY);
 		}
 	}
 }
