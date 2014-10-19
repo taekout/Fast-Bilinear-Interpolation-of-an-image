@@ -25,22 +25,6 @@ void inline pixelCopy(unsigned char * dst, const unsigned char * src)
 }
 
 
-void inline interpolate4Pixels(unsigned char *dst, const unsigned char * NW, const unsigned char * NE, const unsigned char * SW, const unsigned char * SE, float x, float y)
-{
-	unsigned char mixNorth[3] = { 0 };
-	for(size_t i = 0 ; i < BYTES_PER_PIXEL ; i++) {
-		mixNorth[i] = NW[i] * (1.f - x) + NE[i] * x;
-	}
-
-	unsigned char mixSouth[3] = { 0 };
-	for(size_t i = 0 ; i < BYTES_PER_PIXEL ; i++) {
-		mixSouth[i] = SW[i] * (1.f - x) + SE[i] * x;
-	}
-
-	for(size_t i = 0 ; i < BYTES_PER_PIXEL ; i++) {
-		dst[i] = mixNorth[i] * (1.f - y) + mixSouth[i] * y;
-	}
-}
 
 struct vec3 {
 	unsigned char r, g, b;
@@ -52,7 +36,26 @@ struct vec3 {
 		g = d[1];
 		r = d[2];
 	}
+
+	const vec3 operator +(const vec3 & rhs) const {
+		return vec3(this->r + rhs.r, this->g + rhs.g, this->b + rhs.b);
+	}
+
+	const vec3 operator *(float rhs) const {
+		return vec3(this->r * rhs, this->g * rhs, this->b * rhs);
+	}
 };
+
+
+void interpolate4Pixels(unsigned char *dst, const vec3 & NW, const vec3 & NE, const vec3 & SW, const vec3 & SE, float x, float y)
+{
+	vec3 mixNorth = NW * (1.f - x) + NE * x;
+	vec3 mixSouth = SW * (1.f - x) + SE * x;
+	vec3 res = mixNorth * (1.f - y) + mixSouth * y;
+	dst[0] = res.b;
+	dst[1] = res.g;
+	dst[2] = res.r;
+}
 
 
 void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_src_height, const unsigned char * in_source, size_t in_dest_width, size_t in_dest_height, unsigned char * in_dest)
@@ -126,10 +129,10 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
 
-			//float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (srcWidth - 1);
-			//float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (srcHeight - 1);
-			float dsrcX = ( (float)(x) / (in_dest_width )) * (srcWidth);
-			float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight);
+			float dsrcX = ( (float)(x) / (in_dest_width)) * (srcWidth - 1);
+			float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight - 1);
+			//float dsrcX = ( (float)(x) / (in_dest_width)) * (srcWidth);
+			//float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight);
 
 			int srcX = (int) dsrcX;
 			int srcY = (int) dsrcY;
@@ -137,11 +140,7 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 			float weightX = dsrcX - srcX;
 			float weightY = dsrcY - srcY;
 
-			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL] = srcImg[srcY][srcX].b;
-			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL + 1] = srcImg[srcY][srcX].g;
-			in_dest[(y * in_dest_width + x) * BYTES_PER_PIXEL + 2] = srcImg[srcY][srcX].r;
-
-			//interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, NW, NE, SW, SE, dsrcX - srcX, dsrcY - srcY);
+			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL, srcImg[srcY][srcX], srcImg[srcY][srcX+1], srcImg[srcY+1][srcX], srcImg[srcY+1][srcX+1], dsrcX - srcX, dsrcY - srcY);
 		}
 	}
 }
