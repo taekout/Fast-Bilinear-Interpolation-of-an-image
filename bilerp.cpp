@@ -248,7 +248,7 @@ void generateFilteredImageOneRowThreaded(const ThreadArgList & argList)
 	for(size_t x = 0 ; x < inDestWidth ; x++) {
 
 		float dsrcX = ( (float)(x) / (inDestWidth - 1)) * (inSrcWidth - 2) + 1;
-		float dsrcY = ( (float)(inRow) / (inDestWidth - 1)) * (inSrcHeight - 2) + 1;
+		float dsrcY = ( (float)(inRow) / (inDestHeight - 1)) * (inSrcHeight - 2) + 1;
 
 		int srcXFloor = ((int)(dsrcX / 2)) * 2;
 		int srcXCeil = ((int)(dsrcX / 2 + 1)) * 2;
