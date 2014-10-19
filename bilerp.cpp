@@ -22,7 +22,7 @@ void generateFilteredImageOneRow(size_t inRow, size_t inSrcWidth, size_t inSrcHe
 void generateFilteredImageOneRowThreaded(const ThreadArgList & argList)
 {
 	size_t inRow = argList.curRow;
-	ThreadMgrForRows * threadMgr = argList.threadMgr;
+	IThreadMgrForRows * threadMgr = argList.threadMgr;
 	size_t inSrcWidth = argList.srcWidth;
 	size_t inSrcHeight = argList.srcHeight;
 	vector<vector<vec3>> & inSource = argList.source;
@@ -54,6 +54,8 @@ void generateFilteredImageOneRowThreaded(const ThreadArgList & argList)
 			inSource[srcYCeil][srcXCeil],
 			weightX, weightY);
 	}
+
+	threadMgr->SetFinished(inRow);
 }
 
 
@@ -69,14 +71,20 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	vector< vector<vec3> > srcImg;
 	EnlargeSrcImage(in_src_width, in_src_height, in_source, srcWidth, srcHeight, srcImg);
 
-	ThreadMgrForRows threadMgr(in_num_threads, srcWidth, srcHeight, srcImg, in_dest_width, in_dest_height, in_dest);
-	threadMgr.Init();
+	tFinished = new bool[in_dest_height];
+	for(size_t i = 0 ; i < in_dest_height ; i++)
+		tFinished[i] = false;
+	
+	IThreadMgrForRows * threadMgr = new ThreadMgrForRows(in_num_threads, srcWidth, srcHeight, srcImg, in_dest_width, in_dest_height, in_dest);
+	threadMgr->Init();
 
-	while( ! threadMgr.AllRowsProcessed() ) {
+	while( ! threadMgr->AllRowsProcessed() ) {
 		// Threading.
-		threadMgr.RunThread(generateFilteredImageOneRowThreaded);
+		threadMgr->RunThread(generateFilteredImageOneRowThreaded);
 	}
-	threadMgr.Join();
+	threadMgr->JoinSynchronos();
+	delete threadMgr;
+	delete [] tFinished;
 }
 
 #pragma region main
