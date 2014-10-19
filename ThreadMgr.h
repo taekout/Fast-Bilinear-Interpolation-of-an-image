@@ -18,8 +18,20 @@ struct ThreadArgList
 	ThreadMgrForRows * threadMgr;
 };
 
+class IThreadMgrForRows
+{
+public:
+	virtual ~IThreadMgrForRows() {}
+	virtual void Init() = 0;
 
-class ThreadMgrForRows
+	virtual bool AllRowsProcessed() = 0;
+	virtual void RunThread(void func(const ThreadArgList &)) = 0;
+	virtual void Join() = 0;
+
+};
+
+
+class ThreadMgrForRows : public IThreadMgrForRows
 {
 public:
 	ThreadMgrForRows(size_t _nMaxThreads, size_t _srcWidth, size_t _srcHeight, vector<vector<vec3>> & _srcImg, size_t _destWidth, size_t _destHeight, unsigned char * _destImg)
