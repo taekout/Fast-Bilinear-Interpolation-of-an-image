@@ -1,15 +1,6 @@
 #pragma  once
 
-
-#define TAEKYU_DEBUG
-#ifdef TAEKYU_DEBUG
-#define CHECK_BOUND(x,y,xbound,ybound)		( (x >= 0 && x < xbound) && (y >= 0 && y < ybound) )
-#else
-#define CHECK_BOUND(x,y,xbound,ybound)	true
-#endif
-
 const size_t BYTES_PER_PIXEL = 3; // 24 bit color depth :D
-
 
 struct vec3 {
 	unsigned char r, g, b;
@@ -31,12 +22,6 @@ struct vec3 {
 	}
 };
 
-void inline pixelCopy(unsigned char * dst, const unsigned char * src)
-{
-	for(int i = 0 ; i < BYTES_PER_PIXEL ; i++) {
-		dst[i] = src[i];
-	}
-}
 
 
 
