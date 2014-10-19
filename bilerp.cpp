@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <ctime>
 #include <vector>
+#include <process.h>
 
 using namespace std;
 
@@ -116,7 +117,6 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	fillBoardCol(srcImg, srcWidth - 1, srcWidth - 2);
 	fillBoardCol(srcImg, 0, 1);
 	
-	//const float epsilon = 0.00000000001f;
 	// Interpolate over src image.
 	for(size_t y = 0 ; y < in_dest_height ; y++) {
 		for(size_t x = 0 ; x < in_dest_width ; x++) {
