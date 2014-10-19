@@ -11,52 +11,11 @@ using namespace std;
 
 void writeBitmap(std::string in_filename, size_t in_width, size_t in_height, unsigned char * in_data);
 void generateLowResBitmap(size_t in_width, size_t in_height, unsigned char * in_data);
-void interpolate4Pixels(unsigned char *dst, const vec3 & NW, const vec3 & NE, const vec3 & SW, const vec3 & SE, float x, float y);
 
-
+inline void interpolate4Pixels(unsigned char *dst, const vec3 & NW, const vec3 & NE, const vec3 & SW, const vec3 & SE, float x, float y);
 void EnlargeSrcImage( size_t in_src_width, size_t in_src_height, const unsigned char * in_source, int & outSrcWidth, int & outSrcHeight, vector< vector<vec3> > & outSrcImg );
-void generateFilteredImageNotThreaded(int in_num_threads, size_t in_src_width, size_t in_src_height, const unsigned char * in_source, size_t in_dest_width, size_t in_dest_height, unsigned char * in_dest);
-void generateFilteredImageOneRow(size_t inRow, size_t inSrcWidth, size_t inSrcHeight, const vector<vector<vec3>> & inSource, size_t inDestWidth, size_t inDestHeight, unsigned char * in_dest);
+void generateFilteredImageOneRowThreaded(const ThreadArgList & argList);
 
-
-void generateFilteredImageOneRowThreaded(const ThreadArgList & argList)
-{
-	size_t inRow = argList.curRow;
-	IThreadMgrForRows * threadMgr = argList.threadMgr;
-	size_t inSrcWidth = argList.srcWidth;
-	size_t inSrcHeight = argList.srcHeight;
-	vector<vector<vec3>> & inSource = argList.source;
-	size_t inDestWidth = argList.destWidth;
-	size_t inDestHeight = argList.destHeight;
-	unsigned char * in_dest = argList.dest;
-
-	if(inRow >= inDestHeight) return;
-
-	for(size_t x = 0 ; x < inDestWidth ; x++) {
-
-		float dsrcX = ( (float)(x) / (inDestWidth - 1)) * (inSrcWidth - 2) + 1;
-		float dsrcY = ( (float)(inRow) / (inDestWidth - 1)) * (inSrcHeight - 2) + 1;
-
-		int srcXFloor = ((int)(dsrcX / 2)) * 2;
-		int srcXCeil = ((int)(dsrcX / 2 + 1)) * 2;
-		float weightX = (dsrcX - srcXFloor) / 2; // srcXCeil - srcXFloor is always 2.
-		int srcYFloor = ((int)(dsrcY / 2)) * 2;
-		int srcYCeil = ((int)(dsrcY / 2 + 1)) * 2;
-		float weightY = (dsrcY - srcYFloor) / 2; // srcXCeil - srcXFloor is always 2.
-
-		srcXCeil = (srcXCeil >= inSrcWidth) ? inSrcWidth - 1 : srcXCeil;
-		srcYCeil = (srcYCeil >= inSrcHeight) ? inSrcHeight - 1 : srcYCeil;
-
-		interpolate4Pixels(in_dest + (inRow * inDestWidth + x) * BYTES_PER_PIXEL,
-			inSource[srcYFloor][srcXFloor],
-			inSource[srcYFloor][srcXCeil],
-			inSource[srcYCeil][srcXFloor],
-			inSource[srcYCeil][srcXCeil],
-			weightX, weightY);
-	}
-
-	threadMgr->SetFinished(inRow);
-}
 
 
 void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_src_height, const unsigned char * in_source, size_t in_dest_width, size_t in_dest_height, unsigned char * in_dest)
@@ -212,87 +171,6 @@ void writeBitmap(std::string in_filename, size_t in_width, size_t in_height, uns
 }
 
 
-void generateFilteredImageNotThreaded(int in_num_threads, size_t in_src_width, size_t in_src_height, const unsigned char * in_source, size_t in_dest_width, size_t in_dest_height, unsigned char * in_dest)
-{
-	// enlarge the source image to properly interpolate from the boundary.
-	int srcWidth = 2 * (in_src_width + 1);
-	int srcHeight = 2 * (in_src_height + 1);
-	vector< vector<vec3> > srcImg;
-	// init src image.
-	srcImg.resize(srcHeight);
-	for(size_t i = 0 ; i < srcHeight ; i++) {
-		srcImg[i].resize(srcWidth);
-	}
-
-	for(size_t y = 0 ; y < in_src_height; y++) {
-		for(size_t x = 0 ; x < in_src_width ; x++) {
-			int ix = x * 2 + 1;
-			int iy = y * 2 + 1;
-
-			srcImg[iy][ix].Set(&in_source[(y * in_src_width + x) * BYTES_PER_PIXEL]);
-			srcImg[iy][ix+1] = srcImg[iy][ix];
-			srcImg[iy+1][ix] = srcImg[iy][ix];
-			srcImg[iy+1][ix+1] = srcImg[iy][ix];
-		}
-	}
-
-	auto fillBoardRow = [&]( vector< vector<vec3> > & inImage, int destY, int srcY) {
-		if(inImage.empty()) throw "image should have at least a row.";
-		if(inImage[0].empty()) throw "image should have at least a row.";
-
-		int height = inImage.size();
-		int width = inImage[0].size();
-		for(size_t i = 0 ; i < width ; i++) {
-			inImage[destY][i] = inImage[srcY][i];
-		}
-	};
-
-	auto fillBoardCol = [&]( vector< vector<vec3> > & inImage, int destX, int srcX) {
-		if(inImage.empty()) throw "image should have at least a row.";
-		if(inImage[0].empty()) throw "image should have at least a row.";
-
-		int height = inImage.size();
-		int width = inImage[0].size();
-		for(size_t i = 0 ; i < height; i++) {
-			inImage[i][destX] = inImage[i][srcX];
-		}
-	};
-
-	fillBoardRow(srcImg, srcHeight - 1, srcHeight - 2);
-	fillBoardRow(srcImg, 0, 1);
-	fillBoardCol(srcImg, srcWidth - 1, srcWidth - 2);
-	fillBoardCol(srcImg, 0, 1);
-
-	// Interpolate over src image.
-	for(size_t y = 0 ; y < in_dest_height ; y++) {
-		for(size_t x = 0 ; x < in_dest_width ; x++) {
-
-			float dsrcX = ( (float)(x) / (in_dest_width - 1)) * (srcWidth - 2) + 1;
-			float dsrcY = ( (float)(y) / (in_dest_height - 1)) * (srcHeight - 2) + 1;
-
-			int srcXFloor = ((int)(dsrcX / 2)) * 2;
-			int srcXCeil = ((int)(dsrcX / 2 + 1)) * 2;
-			float weightX = (dsrcX - srcXFloor) / 2; // srcXCeil - srcXFloor is always 2.
-			int srcYFloor = ((int)(dsrcY / 2)) * 2;
-			int srcYCeil = ((int)(dsrcY / 2 + 1)) * 2;
-			float weightY = (dsrcY - srcYFloor) / 2; // srcXCeil - srcXFloor is always 2.
-
-			srcXCeil = (srcXCeil >= srcWidth) ? srcWidth - 1 : srcXCeil;
-			srcYCeil = (srcYCeil >= srcHeight) ? srcHeight - 1 : srcYCeil;
-
-			//float dsrcX = ( (float)(x) / (in_dest_width)) * (srcWidth);
-			//float dsrcY = ( (float)(y) / (in_dest_height)) * (srcHeight);
-
-			interpolate4Pixels(in_dest + (y * in_dest_width + x) * BYTES_PER_PIXEL,
-				srcImg[srcYFloor][srcXFloor],
-				srcImg[srcYFloor][srcXCeil],
-				srcImg[srcYCeil][srcXFloor],
-				srcImg[srcYCeil][srcXCeil],
-				weightX, weightY);
-		}
-	}
-}
-
 void EnlargeSrcImage( size_t in_src_width, size_t in_src_height, const unsigned char * in_source, int & outSrcWidth, int & outSrcHeight, vector< vector<vec3> > & outSrcImg )
 {
 	// enlarge the source image to properly interpolate from the boundary.
@@ -354,9 +232,18 @@ void interpolate4Pixels(unsigned char *dst, const vec3 & NW, const vec3 & NE, co
 	dst[2] = res.r;
 }
 
-void generateFilteredImageOneRow(size_t inRow, size_t inSrcWidth, size_t inSrcHeight, const vector<vector<vec3>> & inSource, size_t inDestWidth, size_t inDestHeight, unsigned char * in_dest)
+void generateFilteredImageOneRowThreaded(const ThreadArgList & argList)
 {
-	if(inRow >= inDestHeight) throw "wrong row input";
+	size_t inRow = argList.curRow;
+	IThreadMgrForRows * threadMgr = argList.threadMgr;
+	size_t inSrcWidth = argList.srcWidth;
+	size_t inSrcHeight = argList.srcHeight;
+	vector<vector<vec3>> & inSource = argList.source;
+	size_t inDestWidth = argList.destWidth;
+	size_t inDestHeight = argList.destHeight;
+	unsigned char * in_dest = argList.dest;
+
+	if(inRow >= inDestHeight) return;
 
 	for(size_t x = 0 ; x < inDestWidth ; x++) {
 
@@ -380,7 +267,10 @@ void generateFilteredImageOneRow(size_t inRow, size_t inSrcWidth, size_t inSrcHe
 			inSource[srcYCeil][srcXCeil],
 			weightX, weightY);
 	}
+
+	threadMgr->SetFinished(inRow);
 }
+
 
 
 #pragma endregion

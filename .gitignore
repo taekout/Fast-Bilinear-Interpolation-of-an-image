@@ -9,3 +9,6 @@ Debug/vc110.pdb
 Debug/bilerp.obj
 bilerpCpp.sdf
 bilerpCpp.opensdf
+*.suo
+*.suo
+bilerpCpp.v11.suo
