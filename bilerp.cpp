@@ -43,7 +43,7 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	}
 	threadMgr->JoinSynchronos();
 	delete threadMgr;
-	delete [] tFinished;
+	delete [] tFinished; tFinished = NULL;
 }
 
 #pragma region main
