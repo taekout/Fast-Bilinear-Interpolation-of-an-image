@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
 
 	clock_t begin = clock();
 	try {
-	generateFilteredImage(0,generated_width, generated_height, generated_image, result_width, result_height, result_image);
+	generateFilteredImage(8,generated_width, generated_height, generated_image, result_width, result_height, result_image);
 	}
 	catch(char * err) {
 		printf("%s\n", err);
