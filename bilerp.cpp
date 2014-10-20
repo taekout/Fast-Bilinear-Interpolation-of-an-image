@@ -26,6 +26,8 @@ void generateFilteredImage(int in_num_threads, size_t in_src_width, size_t in_sr
 	// - Determine the color for each pixel in that row
 	// - Set those pixels in in_dest
 	// - Keep doing that until all the rows in the bitmap are complete
+	if(in_num_threads <= 0)
+		throw "# of threads should be 1 or higher.";
 	int srcWidth, srcHeight;
 	vector< vector<vec3> > srcImg;
 	EnlargeSrcImage(in_src_width, in_src_height, in_source, srcWidth, srcHeight, srcImg);
@@ -67,7 +69,13 @@ int main(int argc, char ** argv)
 	memset(result_image,0,result_width*result_height*BYTES_PER_PIXEL);
 
 	clock_t begin = clock();
-	generateFilteredImage(8,generated_width, generated_height, generated_image, result_width, result_height, result_image);
+	try {
+	generateFilteredImage(0,generated_width, generated_height, generated_image, result_width, result_height, result_image);
+	}
+	catch(char * err) {
+		printf("%s\n", err);
+		exit(-1);
+	}
 	clock_t end = clock();
 	double elapsed_secs = double(end - begin) / CLOCKS_PER_SEC;
 	printf("TIme elapsed : %f\n", elapsed_secs);
